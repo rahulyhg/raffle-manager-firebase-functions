@@ -10,52 +10,157 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const uuidv4 = require("uuid/v4");
 const utils_1 = require("./utils");
 const cors = require('cors')({ origin: true });
 // The Firebase Admin SDK to access the Firebase Realtime Database. 
 admin.initializeApp(functions.config().firebase);
-exports.handleRaffleEntry = functions.https.onRequest((req, res) => {
+exports.handleAdminLogin = functions.https.onRequest((req, res) => {
     cors(req, res, () => __awaiter(this, void 0, void 0, function* () {
         try {
-            console.log('--------------------------------');
-            console.log('body: ', req.body);
-            // Grab the text parameter.
             const { username, password } = req.body;
+            const adminRef = admin.database().ref('/admin');
             if (!username || !password) {
                 throw new Error('Please provide a valid username or password.');
             }
-            console.log('username: ', username);
-            console.log('password: ', password);
+            const snapshot = yield adminRef.once('value');
+            const snapshotData = snapshot.val();
+            const _username = snapshotData.username;
+            const _password = snapshotData.password;
+            if (username === _username && password === _password) {
+                res.status(200).send('Successfully logged in!');
+            }
+            throw new Error('Incorrect username or password provided.');
+        }
+        catch (err) {
+            console.log(`${err.name}: ${err.message}`);
+            res.status(500).send(`${err.name}: ${err.message}`);
+        }
+    }));
+});
+exports.createAccount = functions.https.onRequest((req, res) => {
+    cors(req, res, () => __awaiter(this, void 0, void 0, function* () {
+        try {
+            const { firstName, lastName, username, password } = req.body;
+            const _id = uuidv4();
             const usersRef = admin.database().ref('/users');
-            console.log('got usersRef.');
+            const ticketsRef = admin.database().ref('/tickets');
+            if (!firstName || !lastName || !username || !password) {
+                throw new Error('Please provide a valid first name or last name or username or password.');
+            }
+            yield usersRef.child(_id).set({
+                _id,
+                firstName,
+                lastName,
+                username,
+                password
+            });
+            yield ticketsRef.child(_id).set({
+                firstName,
+                lastName,
+                ticketCount: 1,
+                lastUpdated: admin.database.ServerValue.TIMESTAMP
+            });
+            res.status(200).send('Successfully registered your account!');
+        }
+        catch (err) {
+            console.log(`${err.name}: ${err.message}`);
+            res.status(500).send(`${err.name}: ${err.message}`);
+        }
+    }));
+});
+exports.resetPassword = functions.https.onRequest((req, res) => {
+    cors(req, res, () => __awaiter(this, void 0, void 0, function* () {
+        try {
+            const { firstName, lastName, username, password } = req.body;
+            const usersRef = admin.database().ref('/users');
+            if (!firstName || !lastName || !username || !password) {
+                throw new Error('Please provide a valid first name or last name or username or password.');
+            }
             const snapshot = yield usersRef.orderByChild('username').equalTo(username).once('value');
-            console.log('grabbing matched users...');
             const users = utils_1.transformObjectToList(snapshot.val());
             if (!users) {
                 throw new Error('There was an issue finding your account. Please try again.');
             }
-            console.log('transformed users');
-            console.log('users length: ', users.length);
             let _id = null;
             for (let user of users) {
-                console.log('looping over user password: ', user.password);
-                if (user.password === password) {
-                    // the supplied password is correct
-                    // so we can update their ticket count
-                    console.log('credentials match!');
-                    console.log('matched... _id: ', user._id);
+                if (user.firstName === firstName && user.lastName === lastName && user.username === username) {
                     _id = user._id;
                     break;
                 }
             }
             if (!_id) {
-                console.log('NO USER MATCH');
+                throw new Error('There was an issue finding your account. Please try again.');
+            }
+            // we found the correct user so let's set their new password
+            yield usersRef.child(_id).update({ password });
+            res.status(200).send('Successfully reset your account password!');
+        }
+        catch (err) {
+            console.log(`${err.name}: ${err.message}`);
+            res.status(500).send(`${err.name}: ${err.message}`);
+        }
+    }));
+});
+exports.resetUsername = functions.https.onRequest((req, res) => {
+    cors(req, res, () => __awaiter(this, void 0, void 0, function* () {
+        try {
+            const { firstName, lastName, username, password } = req.body;
+            const usersRef = admin.database().ref('/users');
+            if (!firstName || !lastName || !username || !password) {
+                throw new Error('Please provide a valid first name or last name or username or password.');
+            }
+            const snapshot = yield usersRef.orderByChild('password').equalTo(password).once('value');
+            const users = utils_1.transformObjectToList(snapshot.val());
+            if (!users) {
+                throw new Error('There was an issue finding your account. Please try again.');
+            }
+            let _id = null;
+            for (let user of users) {
+                if (user.firstName === firstName && user.lastName === lastName && user.password === password) {
+                    _id = user._id;
+                    break;
+                }
+            }
+            if (!_id) {
+                throw new Error('There was an issue finding your account. Please try again.');
+            }
+            // we found the correct user so let's set their new password
+            yield usersRef.child(_id).update({ username });
+            res.status(200).send('Successfully reset your account username!');
+        }
+        catch (err) {
+            console.log(`${err.name}: ${err.message}`);
+            res.status(500).send(`${err.name}: ${err.message}`);
+        }
+    }));
+});
+exports.handleRaffleEntry = functions.https.onRequest((req, res) => {
+    cors(req, res, () => __awaiter(this, void 0, void 0, function* () {
+        try {
+            const { username, password } = req.body;
+            if (!username || !password) {
+                throw new Error('Please provide a valid username or password.');
+            }
+            const usersRef = admin.database().ref('/users');
+            const snapshot = yield usersRef.orderByChild('username').equalTo(username).once('value');
+            const users = utils_1.transformObjectToList(snapshot.val());
+            if (!users) {
+                throw new Error('There was an issue finding your account. Please try again.');
+            }
+            let _id = null;
+            for (let user of users) {
+                if (user.password === password) {
+                    _id = user._id;
+                    break;
+                }
+            }
+            if (!_id) {
                 throw new Error('There was an issue finding your account. Please try again.');
             }
             const ticketRef = admin.database().ref('/tickets').child(_id);
             const ticketSnapshot = yield ticketRef.once('value');
             const ticketCount = ticketSnapshot.val().ticketCount;
-            console.log('ticketCount: ', ticketCount);
             yield ticketRef.update({ ticketCount: ticketCount + 1 });
             res.status(200).send('Your ticket count was successfully updated!');
         }
