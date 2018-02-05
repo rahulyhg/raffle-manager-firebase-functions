@@ -11,6 +11,7 @@
   "main": "lib/index.js",
   "dependencies": {
     "cors": "^2.8.4",
+    "date-fns": "^1.29.0",
     "firebase-admin": "~5.8.1",
     "firebase-functions": "^0.8.1",
     "lodash.isempty": "^4.4.0",

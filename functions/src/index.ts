@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import * as uuidv4 from 'uuid/v4'
+import * as differenceInHours from 'date-fns/difference_in_hours'
 import { transformObjectToList } from './utils'
 const cors = require('cors')({ origin: true });
 
@@ -184,9 +185,20 @@ export const handleRaffleEntry = functions.https.onRequest((req, res) => {
 
       const ticketRef: admin.database.Reference = admin.database().ref('/tickets').child(_id)
       const ticketSnapshot = await ticketRef.once('value')
-      const ticketCount = ticketSnapshot.val().ticketCount
+      const ticketData = ticketSnapshot.val()
+      const { ticketCount, lastUpdated } = ticketData
 
-      await ticketRef.update({ ticketCount: ticketCount + 1 })
+      const currentDate = new Date();
+      const lastUpdatedDate = new Date(lastUpdated)
+
+      const resultDifference = differenceInHours(currentDate, lastUpdatedDate)
+      const minRequiredHourDifference = ((24 * 7) - 3)
+
+      if (resultDifference > minRequiredHourDifference === false) {
+        throw new Error('You may only recieve 1 raffle ticket per week.')
+      }
+
+      await ticketRef.update({ ticketCount: ticketCount + 1, lastUpdated: admin.database.ServerValue.TIMESTAMP })
 
       res.status(200).send('Your ticket count was successfully updated!')
     }

@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const uuidv4 = require("uuid/v4");
+const differenceInHours = require("date-fns/difference_in_hours");
 const utils_1 = require("./utils");
 const cors = require('cors')({ origin: true });
 // The Firebase Admin SDK to access the Firebase Realtime Database. 
@@ -160,8 +161,16 @@ exports.handleRaffleEntry = functions.https.onRequest((req, res) => {
             }
             const ticketRef = admin.database().ref('/tickets').child(_id);
             const ticketSnapshot = yield ticketRef.once('value');
-            const ticketCount = ticketSnapshot.val().ticketCount;
-            yield ticketRef.update({ ticketCount: ticketCount + 1 });
+            const ticketData = ticketSnapshot.val();
+            const { ticketCount, lastUpdated } = ticketData;
+            const currentDate = new Date();
+            const lastUpdatedDate = new Date(lastUpdated);
+            const resultDifference = differenceInHours(currentDate, lastUpdatedDate);
+            const minRequiredHourDifference = ((24 * 7) - 3);
+            if (resultDifference > minRequiredHourDifference === false) {
+                throw new Error('You may only recieve 1 raffle ticket per week.');
+            }
+            yield ticketRef.update({ ticketCount: ticketCount + 1, lastUpdated: admin.database.ServerValue.TIMESTAMP });
             res.status(200).send('Your ticket count was successfully updated!');
         }
         catch (err) {
