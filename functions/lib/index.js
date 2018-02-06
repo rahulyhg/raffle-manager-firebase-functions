@@ -20,7 +20,7 @@ exports.handleAdminLogin = functions.https.onRequest((req, res) => {
     cors(req, res, () => __awaiter(this, void 0, void 0, function* () {
         try {
             const { username, password } = req.body;
-            const adminRef = admin.database().ref('/admin');
+            const adminRef = admin.database().ref('/admin/app');
             if (!username || !password) {
                 throw new Error('Please provide a valid username or password.');
             }
@@ -29,13 +29,36 @@ exports.handleAdminLogin = functions.https.onRequest((req, res) => {
             const _username = snapshotData.username;
             const _password = snapshotData.password;
             if (username === _username && password === _password) {
-                res.status(200).send('Successfully logged in!');
+                return res.status(200).send('Successfully logged in!');
             }
             throw new Error('Incorrect username or password provided.');
         }
         catch (err) {
             console.log(`${err.name}: ${err.message}`);
-            res.status(500).send(`${err.name}: ${err.message}`);
+            return res.status(500).send(`${err.name}: ${err.message}`);
+        }
+    }));
+});
+exports.handleDashboardLogin = functions.https.onRequest((req, res) => {
+    cors(req, res, () => __awaiter(this, void 0, void 0, function* () {
+        try {
+            const { username, password } = req.body;
+            const adminRef = admin.database().ref('/admin/dashboard');
+            if (!username || !password) {
+                throw new Error('Please provide a valid username or password.');
+            }
+            const snapshot = yield adminRef.once('value');
+            const snapshotData = snapshot.val();
+            const _username = snapshotData.username;
+            const _password = snapshotData.password;
+            if (username === _username && password === _password) {
+                return res.status(200).send('Successfully logged in!');
+            }
+            throw new Error('Incorrect username or password provided.');
+        }
+        catch (err) {
+            console.log(`${err.name}: ${err.message}`);
+            return res.status(500).send(`${err.name}: ${err.message}`);
         }
     }));
 });
@@ -62,11 +85,11 @@ exports.createAccount = functions.https.onRequest((req, res) => {
                 ticketCount: 1,
                 lastUpdated: admin.database.ServerValue.TIMESTAMP
             });
-            res.status(200).send('Successfully registered your account!');
+            return res.status(200).send('Successfully registered your account!');
         }
         catch (err) {
             console.log(`${err.name}: ${err.message}`);
-            res.status(500).send(`${err.name}: ${err.message}`);
+            return res.status(500).send(`${err.name}: ${err.message}`);
         }
     }));
 });
@@ -95,11 +118,11 @@ exports.resetPassword = functions.https.onRequest((req, res) => {
             }
             // we found the correct user so let's set their new password
             yield usersRef.child(_id).update({ password });
-            res.status(200).send('Successfully reset your account password!');
+            return res.status(200).send('Successfully reset your account password!');
         }
         catch (err) {
             console.log(`${err.name}: ${err.message}`);
-            res.status(500).send(`${err.name}: ${err.message}`);
+            return res.status(500).send(`${err.name}: ${err.message}`);
         }
     }));
 });
@@ -128,11 +151,11 @@ exports.resetUsername = functions.https.onRequest((req, res) => {
             }
             // we found the correct user so let's set their new password
             yield usersRef.child(_id).update({ username });
-            res.status(200).send('Successfully reset your account username!');
+            return res.status(200).send('Successfully reset your account username!');
         }
         catch (err) {
             console.log(`${err.name}: ${err.message}`);
-            res.status(500).send(`${err.name}: ${err.message}`);
+            return res.status(500).send(`${err.name}: ${err.message}`);
         }
     }));
 });
@@ -171,11 +194,26 @@ exports.handleRaffleEntry = functions.https.onRequest((req, res) => {
                 throw new Error('You may only recieve 1 raffle ticket per week.');
             }
             yield ticketRef.update({ ticketCount: ticketCount + 1, lastUpdated: admin.database.ServerValue.TIMESTAMP });
-            res.status(200).send('Your ticket count was successfully updated!');
+            return res.status(200).send('Your ticket count was successfully updated!');
         }
         catch (err) {
             console.log(`${err.name}: ${err.message}`);
-            res.status(500).send(`${err.name}: ${err.message}`);
+            return res.status(500).send(`${err.name}: ${err.message}`);
+        }
+    }));
+});
+exports.getUsersForDashboard = functions.https.onRequest((req, res) => {
+    cors(req, res, () => __awaiter(this, void 0, void 0, function* () {
+        try {
+            const usersRef = admin.database().ref('/users');
+            const snapshot = yield usersRef.once('value');
+            const users = utils_1.transformObjectToList(snapshot.val());
+            const transformedUsers = users.map(({ _id, firstName, lastName, username }) => ({ _id, firstName, lastName, username }));
+            return res.status(200).send(transformedUsers);
+        }
+        catch (err) {
+            console.log(`${err.name}: ${err.message}`);
+            return res.status(500).send(`${err.name}: ${err.message}`);
         }
     }));
 });

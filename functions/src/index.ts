@@ -12,7 +12,7 @@ export const handleAdminLogin = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
     try {
       const { username, password } = req.body
-      const adminRef: admin.database.Reference = admin.database().ref('/admin')
+      const adminRef: admin.database.Reference = admin.database().ref('/admin/app')
 
       if (!username || !password) {
         throw new Error('Please provide a valid username or password.')
@@ -24,14 +24,42 @@ export const handleAdminLogin = functions.https.onRequest((req, res) => {
       const _password = snapshotData.password
 
       if (username === _username && password === _password) {
-        res.status(200).send('Successfully logged in!')
+        return res.status(200).send('Successfully logged in!')
       }
 
       throw new Error('Incorrect username or password provided.')
     }
     catch (err) {
       console.log(`${err.name}: ${err.message}`)
-      res.status(500).send(`${err.name}: ${err.message}`)
+      return res.status(500).send(`${err.name}: ${err.message}`)
+    }
+  })
+})
+
+export const handleDashboardLogin = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { username, password } = req.body
+      const adminRef: admin.database.Reference = admin.database().ref('/admin/dashboard')
+
+      if (!username || !password) {
+        throw new Error('Please provide a valid username or password.')
+      }
+
+      const snapshot: admin.database.DataSnapshot = await adminRef.once('value')
+      const snapshotData = snapshot.val()
+      const _username = snapshotData.username
+      const _password = snapshotData.password
+
+      if (username === _username && password === _password) {
+        return res.status(200).send('Successfully logged in!')
+      }
+
+      throw new Error('Incorrect username or password provided.')
+    }
+    catch (err) {
+      console.log(`${err.name}: ${err.message}`)
+      return res.status(500).send(`${err.name}: ${err.message}`)
     }
   })
 })
@@ -63,11 +91,11 @@ export const createAccount = functions.https.onRequest((req, res) => {
         lastUpdated: admin.database.ServerValue.TIMESTAMP
       })
 
-      res.status(200).send('Successfully registered your account!')
+      return res.status(200).send('Successfully registered your account!')
     }
     catch (err) {
       console.log(`${err.name}: ${err.message}`)
-      res.status(500).send(`${err.name}: ${err.message}`)
+      return res.status(500).send(`${err.name}: ${err.message}`)
     }
   })
 })
@@ -104,11 +132,11 @@ export const resetPassword = functions.https.onRequest((req, res) => {
       // we found the correct user so let's set their new password
       await usersRef.child(_id).update({ password })
 
-      res.status(200).send('Successfully reset your account password!')
+      return res.status(200).send('Successfully reset your account password!')
     }
     catch (err) {
       console.log(`${err.name}: ${err.message}`)
-      res.status(500).send(`${err.name}: ${err.message}`)
+      return res.status(500).send(`${err.name}: ${err.message}`)
     }
   })
 })
@@ -145,11 +173,11 @@ export const resetUsername = functions.https.onRequest((req, res) => {
       // we found the correct user so let's set their new password
       await usersRef.child(_id).update({ username })
 
-      res.status(200).send('Successfully reset your account username!')
+      return res.status(200).send('Successfully reset your account username!')
     }
     catch (err) {
       console.log(`${err.name}: ${err.message}`)
-      res.status(500).send(`${err.name}: ${err.message}`)
+      return res.status(500).send(`${err.name}: ${err.message}`)
     }
   })
 })
@@ -200,12 +228,28 @@ export const handleRaffleEntry = functions.https.onRequest((req, res) => {
 
       await ticketRef.update({ ticketCount: ticketCount + 1, lastUpdated: admin.database.ServerValue.TIMESTAMP })
 
-      res.status(200).send('Your ticket count was successfully updated!')
+      return res.status(200).send('Your ticket count was successfully updated!')
     }
     catch (err) {
       console.log(`${err.name}: ${err.message}`)
-      res.status(500).send(`${err.name}: ${err.message}`)
+      return res.status(500).send(`${err.name}: ${err.message}`)
     }
   })
 });
 
+export const getUsersForDashboard = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const usersRef: admin.database.Reference = admin.database().ref('/users')
+      const snapshot = await usersRef.once('value')
+      const users = transformObjectToList(snapshot.val())
+      const transformedUsers = users.map(({ _id, firstName, lastName, username }) => ({ _id, firstName, lastName, username }))
+
+      return res.status(200).send(transformedUsers)
+    }
+    catch (err) {
+      console.log(`${err.name}: ${err.message}`)
+      return res.status(500).send(`${err.name}: ${err.message}`)
+    }
+  })
+});
