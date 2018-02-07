@@ -13,6 +13,8 @@ const admin = require("firebase-admin");
 const uuidv4 = require("uuid/v4");
 const differenceInHours = require("date-fns/difference_in_hours");
 const utils_1 = require("./utils");
+const random = require("lodash.random");
+const shuffle = require("lodash.shuffle");
 const cors = require('cors')({ origin: true });
 // The Firebase Admin SDK to access the Firebase Realtime Database. 
 admin.initializeApp(functions.config().firebase);
@@ -210,6 +212,53 @@ exports.getUsersForDashboard = functions.https.onRequest((req, res) => {
             const users = utils_1.transformObjectToList(snapshot.val());
             const transformedUsers = users.map(({ _id, firstName, lastName, username }) => ({ _id, firstName, lastName, username }));
             return res.status(200).send(transformedUsers);
+        }
+        catch (err) {
+            console.log(`${err.name}: ${err.message}`);
+            return res.status(500).send(`${err.name}: ${err.message}`);
+        }
+    }));
+});
+exports.getRandomRaffleWinner = functions.https.onRequest((req, res) => {
+    cors(req, res, () => __awaiter(this, void 0, void 0, function* () {
+        try {
+            const ticketsRef = admin.database().ref('/tickets');
+            const snapshot = yield ticketsRef.once('value');
+            const tickets = utils_1.mergeTicketsToList(snapshot.val());
+            const raffleEntries = [];
+            tickets.forEach(({ _id, firstName, lastName, ticketCount }) => {
+                for (let i = 0; i < ticketCount; i++) {
+                    raffleEntries.push({
+                        _id,
+                        firstName,
+                        lastName,
+                        ticketCount,
+                    });
+                }
+            });
+            const shuffledRaffleEntries = shuffle(raffleEntries);
+            const randomIndex = random(tickets.length - 1);
+            const raffleWinner = shuffledRaffleEntries[randomIndex];
+            return res.status(200).send(raffleWinner);
+        }
+        catch (err) {
+            console.log(`${err.name}: ${err.message}`);
+            return res.status(500).send(`${err.name}: ${err.message}`);
+        }
+    }));
+});
+exports.confirmRaffleWinners = functions.https.onRequest((req, res) => {
+    cors(req, res, () => __awaiter(this, void 0, void 0, function* () {
+        try {
+            const { raffleWinnerIDs } = req.body;
+            const ticketsRef = admin.database().ref('/tickets');
+            for (let _id of raffleWinnerIDs) {
+                let currentTicketRef = ticketsRef.child(_id);
+                let snapshot = yield currentTicketRef.once('value');
+                let currentTicketCount = snapshot.val().ticketCount;
+                yield currentTicketRef.update({ ticketCount: currentTicketCount - 1 });
+            }
+            return res.status(200).send('Successfully confirmed raffle winners.');
         }
         catch (err) {
             console.log(`${err.name}: ${err.message}`);

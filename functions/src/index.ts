@@ -2,7 +2,9 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import * as uuidv4 from 'uuid/v4'
 import * as differenceInHours from 'date-fns/difference_in_hours'
-import { transformObjectToList } from './utils'
+import { transformObjectToList, mergeTicketsToList } from './utils'
+import * as random from 'lodash.random'
+import * as shuffle from 'lodash.shuffle'
 const cors = require('cors')({ origin: true });
 
 // The Firebase Admin SDK to access the Firebase Realtime Database. 
@@ -246,6 +248,60 @@ export const getUsersForDashboard = functions.https.onRequest((req, res) => {
       const transformedUsers = users.map(({ _id, firstName, lastName, username }) => ({ _id, firstName, lastName, username }))
 
       return res.status(200).send(transformedUsers)
+    }
+    catch (err) {
+      console.log(`${err.name}: ${err.message}`)
+      return res.status(500).send(`${err.name}: ${err.message}`)
+    }
+  })
+});
+
+export const getRandomRaffleWinner = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const ticketsRef: admin.database.Reference = admin.database().ref('/tickets')
+      const snapshot = await ticketsRef.once('value')
+      const tickets = mergeTicketsToList(snapshot.val())
+      const raffleEntries = []
+
+      tickets.forEach(({ _id, firstName, lastName, ticketCount }) => {
+        for (let i = 0; i < ticketCount; i++) {
+          raffleEntries.push({
+            _id,
+            firstName,
+            lastName,
+            ticketCount,
+          })
+        }
+      })
+
+      const shuffledRaffleEntries = shuffle(raffleEntries)
+      const randomIndex = random(tickets.length - 1)
+      const raffleWinner = shuffledRaffleEntries[randomIndex]
+
+      return res.status(200).send(raffleWinner)
+    }
+    catch (err) {
+      console.log(`${err.name}: ${err.message}`)
+      return res.status(500).send(`${err.name}: ${err.message}`)
+    }
+  })
+});
+
+export const confirmRaffleWinners = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { raffleWinnerIDs } = req.body
+      const ticketsRef: admin.database.Reference = admin.database().ref('/tickets')
+
+      for (let _id of raffleWinnerIDs) {
+        let currentTicketRef = ticketsRef.child(_id)
+        let snapshot = await currentTicketRef.once('value')
+        let currentTicketCount = snapshot.val().ticketCount
+        await currentTicketRef.update({ ticketCount: currentTicketCount - 1 })
+      }
+
+      return res.status(200).send('Successfully confirmed raffle winners.')
     }
     catch (err) {
       console.log(`${err.name}: ${err.message}`)
