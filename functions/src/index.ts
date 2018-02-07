@@ -309,3 +309,23 @@ export const confirmRaffleWinners = functions.https.onRequest((req, res) => {
     }
   })
 });
+
+export const resetAllUserTickets = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const ticketsRef: admin.database.Reference = admin.database().ref('/tickets')
+      let snapshot = await ticketsRef.once('value')
+      let tickets: object = snapshot.val()
+
+      for (let ticketID of Object.keys(tickets)) {
+        await ticketsRef.child(ticketID).update({ ticketCount: 0 })
+      }
+
+      return res.status(200).send('Successfully reset all tickets amount back to zero.')
+    }
+    catch (err) {
+      console.log(`${err.name}: ${err.message}`)
+      return res.status(500).send(`${err.name}: ${err.message}`)
+    }
+  })
+});
