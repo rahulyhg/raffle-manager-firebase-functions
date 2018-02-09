@@ -274,10 +274,11 @@ export const getRandomRaffleWinner = functions.https.onRequest((req, res) => {
           })
         }
       })
-
+      console.log('raffleEntries: ', raffleEntries)
       const shuffledRaffleEntries = shuffle(raffleEntries)
       const randomIndex = random(tickets.length - 1)
       const raffleWinner = shuffledRaffleEntries[randomIndex]
+      console.log('raffleWinner: ', raffleWinner)
 
       return res.status(200).send(raffleWinner)
     }
