@@ -266,4 +266,21 @@ exports.confirmRaffleWinners = functions.https.onRequest((req, res) => {
         }
     }));
 });
+exports.resetAllUserTickets = functions.https.onRequest((req, res) => {
+    cors(req, res, () => __awaiter(this, void 0, void 0, function* () {
+        try {
+            const ticketsRef = admin.database().ref('/tickets');
+            let snapshot = yield ticketsRef.once('value');
+            let tickets = snapshot.val();
+            for (let ticketID of Object.keys(tickets)) {
+                yield ticketsRef.child(ticketID).update({ ticketCount: 0 });
+            }
+            return res.status(200).send('Successfully reset all tickets amount back to zero.');
+        }
+        catch (err) {
+            console.log(`${err.name}: ${err.message}`);
+            return res.status(500).send(`${err.name}: ${err.message}`);
+        }
+    }));
+});
 //# sourceMappingURL=index.js.map
