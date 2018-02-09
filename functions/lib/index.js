@@ -236,11 +236,12 @@ exports.getRandomRaffleWinner = functions.https.onRequest((req, res) => {
                     });
                 }
             });
-            console.log('raffleEntries: ', raffleEntries);
+            if (raffleEntries.length <= 0) {
+                throw new Error('There are no possible tickets to choose from.');
+            }
             const shuffledRaffleEntries = shuffle(raffleEntries);
-            const randomIndex = random(tickets.length - 1);
+            const randomIndex = random(raffleEntries.length - 1);
             const raffleWinner = shuffledRaffleEntries[randomIndex];
-            console.log('raffleWinner: ', raffleWinner);
             return res.status(200).send(raffleWinner);
         }
         catch (err) {
