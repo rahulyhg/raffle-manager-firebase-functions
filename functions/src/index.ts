@@ -7,8 +7,9 @@ import * as random from 'lodash.random'
 import * as shuffle from 'lodash.shuffle'
 const cors = require('cors')({ origin: true });
 
+const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG);
 // The Firebase Admin SDK to access the Firebase Realtime Database. 
-admin.initializeApp(functions.config().firebase);
+admin.initializeApp(firebaseConfig);
 
 export const handleAdminLogin = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
